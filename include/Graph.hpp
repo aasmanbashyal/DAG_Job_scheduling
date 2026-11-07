@@ -4,6 +4,7 @@
  */
 
 #pragma once
+#include <cstddef>
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -49,7 +50,8 @@ public:
      * @brief Adds a new node to the graph
      * @param id Unique identifier for the node
      * @param execTime Execution time for the job
-     * @throw std::invalid_argument if id is negative
+     * Existing IDs retain their dependencies and have their execution time updated.
+     * @throw std::invalid_argument if id or execution time is negative
      */
     void addNode(int id, double execTime);
 
@@ -65,9 +67,15 @@ public:
 
     /**
      * @brief Gets all nodes in the graph
-     * @return Constant reference to the vector of nodes
+     * @return Constant reference to actual nodes in insertion order, without ID gaps
      */
     const std::vector<Node>& getNodes() const { return nodes; }
+
+    /**
+     * @brief Gets a node by its ID, which need not be contiguous
+     * @throw std::out_of_range if the node does not exist
+     */
+    const Node& getNode(int id) const;
 
     /**
      * @brief Gets communication time between two nodes
@@ -88,6 +96,7 @@ public:
 
 private:
     std::vector<Node> nodes;
+    std::unordered_map<int, std::size_t> nodeIndices;
     std::unordered_map<std::string, Edge> edges;
 
     /**

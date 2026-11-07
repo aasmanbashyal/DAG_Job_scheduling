@@ -5,8 +5,11 @@ OBJDIR = obj
 BINDIR = bin
 
 # Source files
-SOURCES = $(wildcard $(SRCDIR)/core/*.cpp) $(SRCDIR)/main.cpp
+CORE_SOURCES = $(wildcard $(SRCDIR)/core/*.cpp)
+SOURCES = $(CORE_SOURCES) $(SRCDIR)/main.cpp
 OBJECTS = $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+CORE_OBJECTS = $(CORE_SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+HEADERS = $(wildcard include/*.hpp)
 
 # Create directories
 $(shell mkdir -p $(BINDIR) $(OBJDIR)/core)
@@ -17,11 +20,17 @@ all: $(BINDIR)/scheduler
 $(BINDIR)/scheduler: $(OBJECTS)
 	$(CXX) $(OBJECTS) -o $@
 
+$(BINDIR)/scheduler_tests: $(CORE_OBJECTS) tests/scheduler_tests.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) tests/scheduler_tests.cpp $(CORE_OBJECTS) -o $@
+
+test: $(BINDIR)/scheduler_tests
+	./$(BINDIR)/scheduler_tests
+
 # Object files
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJDIR)/* $(BINDIR)/*
 
-.PHONY: all clean
+.PHONY: all clean test
