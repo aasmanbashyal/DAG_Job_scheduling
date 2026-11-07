@@ -26,7 +26,7 @@ A  C++ implementation for Workflow Scheduling problem involves optimizing the ex
 
 ### Prerequisites
 
-- C++ compiler supporting
+- C++ compiler supporting C++17
 - Make build system
 - 64-bit operating system
 - Docker (optional)
@@ -47,6 +47,24 @@ If you prefer to build locally without Docker:
   # Run the scheduler
   ./bin/scheduler
 ```
+
+### Running tests
+
+```bash
+make test
+```
+
+The tests cover cyclic and disconnected graphs, non-contiguous job IDs,
+dependency timing, repeated scheduling, and direct-predecessor placement.
+GitHub Actions runs the tests and example scheduler for pull requests and
+pushes to `main`.
+
+Job IDs can be any nonnegative integer and do not need to be contiguous.
+`getNodes()` contains only added nodes, in insertion order; use `getNode(id)`
+to look up a node by its ID. Adding an existing ID updates its execution time
+without removing dependencies. Adding an existing edge updates its communication
+costs without duplicating the dependency. Cyclic graphs cause
+`getTopologicalOrder()` and `schedule()` to throw `std::runtime_error`.
 
 ### Running with Docker
 

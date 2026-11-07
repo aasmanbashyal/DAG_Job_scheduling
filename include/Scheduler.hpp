@@ -6,6 +6,7 @@
 #pragma once
 #include "Graph.hpp"
 #include <vector>
+#include <unordered_set>
 
 /**
  * @class Scheduler
@@ -62,21 +63,21 @@ private:
      * @param nodeId Job/node ID
      * @param clusterId Target cluster
      * @param machineId Target machine
-     * @param scheduled Vector indicating which jobs are scheduled
+     * @param scheduled Set of scheduled job IDs
      * @return Earliest possible start time
      */
     double calculateEST(int nodeId, int clusterId, int machineId,
-                       const std::vector<bool>& scheduled);
+                       const std::unordered_set<int>& scheduled);
 
     /**
      * @brief Finds the best machine for a job
      * @param nodeId Job/node ID
-     * @param scheduled Vector indicating which jobs are scheduled
+     * @param scheduled Set of scheduled job IDs
      * @return Pair of cluster ID and machine ID
      */
     std::pair<int, int> findEarliestMachine(int nodeId,
-                                          const std::vector<bool>& scheduled);
+                                          const std::unordered_set<int>& scheduled);
 
     double calculateClusterLoad(int clusterId) const;
-    bool isPredecessorInCluster(int nodeId, int clusterId) const;
+    bool isNodeInCluster(int nodeId, int clusterId) const;
 };

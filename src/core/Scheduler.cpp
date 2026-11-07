@@ -20,7 +20,7 @@ Scheduler::Scheduler(const Graph& g, int numClusters, int machinesPerCluster)
 
 std::vector<Scheduler::Assignment> Scheduler::schedule() {
     print_step("Initialization", "Setting up the scheduler");
-    std::vector<bool> scheduled(graph.getNodes().size(), false);
+    std::unordered_set<int> scheduled;
     assignments.clear();
 
     print_step("Topological Sorting");
@@ -44,7 +44,7 @@ std::vector<Scheduler::Assignment> Scheduler::schedule() {
 
         // Calculate start and finish times considering dependencies and machine availability
         double startTime = calculateEST(nodeId, bestCluster, bestMachine, scheduled);
-        double finishTime = startTime + graph.getNodes()[nodeId].execTime;
+        double finishTime = startTime + graph.getNode(nodeId).execTime;
         std::cout << "  Start Time: " << std::fixed << std::setprecision(1)
                  << startTime << ", Finish Time: " << finishTime << "\n";
 
@@ -57,20 +57,22 @@ std::vector<Scheduler::Assignment> Scheduler::schedule() {
             finishTime
         });
 
-        scheduled[nodeId] = true;
+        scheduled.insert(nodeId);
     }
 
     return assignments;
 }
 
 double Scheduler::calculateEST(int nodeId, int clusterId, int machineId,
-                             const std::vector<bool>& scheduled) {
+                             const std::unordered_set<int>& scheduled) {
     double est = 0.0;
-    const auto& node = graph.getNodes()[nodeId];
+    const auto& node = graph.getNode(nodeId);
 
     // Check all prerequisites to determine earliest possible start time
     for (int predId : node.predecessors) {
-        if (!scheduled[predId]) continue;
+        if (scheduled.find(predId) == scheduled.end()) {
+            throw std::runtime_error("Predecessor has not been scheduled");
+        }
 
         // Find where this prerequisite task was scheduled
         auto predAssign = std::find_if(assignments.begin(), assignments.end(),
@@ -96,7 +98,7 @@ double Scheduler::calculateEST(int nodeId, int clusterId, int machineId,
 }
 
 std::pair<int, int> Scheduler::findEarliestMachine(int nodeId,
-                                                  const std::vector<bool>& scheduled) {
+                                                  const std::unordered_set<int>& scheduled) {
     int bestCluster = 0;
     int bestMachine = 0;
     double bestScore = std::numeric_limits<double>::max();
@@ -122,9 +124,9 @@ std::pair<int, int> Scheduler::findEarliestMachine(int nodeId,
 
             // Bonus for keeping dependent tasks in same cluster
             double predBonus = 0.0;
-            const auto& node = graph.getNodes()[nodeId];
+            const auto& node = graph.getNode(nodeId);
             for (int predId : node.predecessors) {
-                if (isPredecessorInCluster(predId, cluster)) {
+                if (isNodeInCluster(predId, cluster)) {
                     predBonus -= 0.5; // Negative bonus improves (reduces) score
                 }
             }
@@ -159,19 +161,16 @@ double Scheduler::calculateClusterLoad(int clusterId) const {
     double load = 0.0;
     for (const auto& assign : assignments) {
         if (assign.clusterId == clusterId) {
-            load += graph.getNodes()[assign.nodeId].execTime;
+            load += graph.getNode(assign.nodeId).execTime;
         }
     }
     return load;
 }
 
-bool Scheduler::isPredecessorInCluster(int nodeId, int clusterId) const {
-    const auto& node = graph.getNodes()[nodeId];
-    for (int predId : node.predecessors) {
-        for (const auto& assign : assignments) {
-            if (assign.nodeId == predId && assign.clusterId == clusterId) {
-                return true;
-            }
+bool Scheduler::isNodeInCluster(int nodeId, int clusterId) const {
+    for (const auto& assign : assignments) {
+        if (assign.nodeId == nodeId && assign.clusterId == clusterId) {
+            return true;
         }
     }
     return false;

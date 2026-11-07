@@ -18,17 +18,22 @@ void Graph::addNode(int id, double execTime) {
         throw std::invalid_argument("Execution time cannot be negative");
     }
 
-    // Expand nodes vector if needed to accommodate new ID
-    if (static_cast<size_t>(id) >= nodes.size()) {
-        nodes.resize(id + 1);
+    const auto existing = nodeIndices.find(id);
+    if (existing != nodeIndices.end()) {
+        nodes[existing->second].execTime = execTime;
+        return;
     }
-    nodes[id].id = id;
-    nodes[id].execTime = execTime;
+    nodeIndices.emplace(id, nodes.size());
+    nodes.push_back(Node{id, execTime, {}, {}});
+}
+
+const Graph::Node& Graph::getNode(int id) const {
+    return nodes.at(nodeIndices.at(id));
 }
 
 void Graph::addEdge(int from, int to, double t1, double t2) {
     // Validate node existence and communication times
-    if (static_cast<size_t>(from) >= nodes.size() || static_cast<size_t>(to) >= nodes.size()) {
+    if (nodeIndices.find(from) == nodeIndices.end() || nodeIndices.find(to) == nodeIndices.end()) {
         throw std::invalid_argument("Node does not exist");
     }
     if (t1 < 0 || t2 < 0) {
@@ -37,11 +42,12 @@ void Graph::addEdge(int from, int to, double t1, double t2) {
 
     // Create unique edge identifier and store edge
     std::string key = makeEdgeKey(from, to);
+    // Replacing an edge's communication costs must not duplicate dependencies.
+    if (edges.find(key) == edges.end()) {
+        nodes[nodeIndices.at(from)].successors.push_back(to);
+        nodes[nodeIndices.at(to)].predecessors.push_back(from);
+    }
     edges[key] = Edge{from, to, t1, t2};
-
-    // Update node connectivity information
-    nodes[from].successors.push_back(to);
-    nodes[to].predecessors.push_back(from);
 }
 
 std::string Graph::makeEdgeKey(int from, int to) const {
@@ -68,14 +74,14 @@ std::vector<int> Graph::getTopologicalOrder() const {
     // Calculate initial in-degrees by counting incoming edges
     for (const auto& node : nodes) {
         for (int succ : node.successors) {
-            inDegree[succ]++;
+            inDegree[nodeIndices.at(succ)]++;
         }
     }
 
     // Initialize queue with all nodes that have no dependencies (in-degree = 0)
     for (size_t i = 0; i < nodes.size(); i++) {
         if (inDegree[i] == 0) {
-            q.push(i);
+            q.push(nodes[i].id);
         }
     }
 
@@ -91,13 +97,17 @@ std::vector<int> Graph::getTopologicalOrder() const {
 
         // Reduce in-degree of dependent nodes
         // Add them to queue when all prerequisites are processed
-        for (int succ : nodes[curr].successors) {
-            inDegree[succ]--;
-            if (inDegree[succ] == 0) {
+        for (int succ : getNode(curr).successors) {
+            const auto index = nodeIndices.at(succ);
+            inDegree[index]--;
+            if (inDegree[index] == 0) {
                 q.push(succ);
             }
         }
     }
 
+    if (result.size() != nodes.size()) {
+        throw std::runtime_error("Graph contains a cycle");
+    }
     return result;
 }
